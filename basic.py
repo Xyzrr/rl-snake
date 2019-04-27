@@ -7,25 +7,64 @@ from wandb.keras import WandbCallback
 import numpy as np
 
 
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
+
 wandb.init(project="snake")
 wandb.config.discount_rate = .8
 wandb.config.eps = .5
 wandb.config.decay_factor = .999
 
+debug = False
 no_render = False
+fast_forward_remaining = 0
 
 
 def render_env_until_key_press(env):
+    global fast_forward_remaining
     waiting = True
 
     def key_press(key, mod):
         nonlocal waiting
-        global no_render
-        if (key == 99):  # c
-            no_render = True
+        global no_render, fast_forward_remaining, debug
+
+        if (key == 100):  # d
+            debug = not debug
+            print(bcolors.OKBLUE +
+                  'Turned {} debug'.format('on' if debug else 'off') + bcolors.ENDC)
+            return
+
+        if (key == 65519 or key == 65520 or key == 65507):  # option or ctrl
+            return
+
+        if (key == 99 and mod == 2):  # ctrl + c
+            exit(0)
+
+        if (48 <= key <= 57):  # 0-9
+            digit = key - 48
+            fast_forward_remaining = 10**digit - 1
+            if mod == 132:  # option
+                no_render = True
+            else:
+                no_render = False
+            print(bcolors.OKBLUE + "Fast forwarding {} steps {}".format(
+                fast_forward_remaining + 1, '(no render)' if no_render else '') + bcolors.ENDC)
+
         waiting = False
 
-    if not no_render:
+    if fast_forward_remaining > 0:
+        fast_forward_remaining -= 1
+        if not no_render:
+            env.render()
+    else:
         env.render()
         env.unwrapped.viewer.window.on_key_press = key_press
         while waiting:
@@ -35,6 +74,9 @@ def render_env_until_key_press(env):
 
 
 def print_step_before_move(step, player, food, prediction, action, was_random):
+    if not debug:
+        return
+
     print()
     print('-' * 40, step, '-' * 40)
     print('Player is at             ', player)
@@ -50,6 +92,9 @@ def print_step_before_move(step, player, food, prediction, action, was_random):
 
 
 def print_step_after_move(reward, target_action_score, label, new_prediction):
+    if not debug:
+        return
+
     print()
     print('Reward:                  ', reward)
     print('Target action score:     ', target_action_score)
@@ -83,10 +128,10 @@ def train(env, model, num_episodes=500):
                 was_random = False
             # counter.append(4**4 * action + 4**3 * player[0] + 4**2 * player[1] +
             #                4 * food[0] + food[1])
-            # print_step_before_move(
-            #     step, player, food, prediction, action, was_random)
+            print_step_before_move(
+                step, player, food, prediction, action, was_random)
 
-            if episode > 2000:
+            if episode > 0:
                 render_env_until_key_press(env)
             observation, reward, done, _ = env.step(action)
             # wandb_table_data.append(
@@ -99,8 +144,8 @@ def train(env, model, num_episodes=500):
             label[0][action] = target_action_score
             model.fit(model_input, label, epochs=1, verbose=0)
 
-            # print_step_after_move(reward, target_action_score,
-            #                       label, model.predict(model_input))
+            print_step_after_move(reward, target_action_score,
+                                  label, model.predict(model_input))
 
             if (reward > 0):
                 total_food += 1
