@@ -27,6 +27,13 @@ class SnakeEnv(gym.Env):
         return (self.player[0] == self.food[0]
                 and self.player[1] == self.food[1])
 
+    def randomize_food(self):
+        while True:
+            self.food = [random.randint(
+                0, self.board_size - 1), random.randint(0, self.board_size - 1)]
+            if self.food[0] != self.player[0] or self.food[1] != self.player[1]:
+                break
+
     def add_square(self, viewer, x, y, color):
         l, r, t, b = x * \
             self.tile_width, (x + 1) * self.tile_width, (self.board_size - y) * \
@@ -45,7 +52,12 @@ class SnakeEnv(gym.Env):
         return self.viewer.render()
 
     def get_observation(self):
-        return ((self.player[0], self.player[1]), (self.food[0], self.food[1]))
+        observation = np.zeros((self.board_size, self.board_size))
+        if not self.player_out_of_bounds():
+            observation[self.player[1], self.player[0]] = 1
+        observation[self.food[1], self.food[0]] = 2
+        return observation
+        # return ((self.player[0], self.player[1]), (self.food[0], self.food[1]))
 
     def step(self, action):
         assert self.action_space.contains(action)
@@ -64,8 +76,7 @@ class SnakeEnv(gym.Env):
         if self.player_on_food():
             self.size += 1
             reward = 10
-            self.food = [random.randint(
-                0, self.board_size - 1), random.randint(0, self.board_size - 1)]
+            self.randomize_food()
 
         done = False
         if self.player_out_of_bounds():
@@ -77,7 +88,6 @@ class SnakeEnv(gym.Env):
     def reset(self):
         self.player = [random.randint(
             0, self.board_size - 1), random.randint(0, self.board_size - 1)]
-        self.food = [random.randint(
-            0, self.board_size - 1), random.randint(0, self.board_size - 1)]
+        self.randomize_food()
         self.size = 1
         return self.get_observation()
