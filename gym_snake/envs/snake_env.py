@@ -29,8 +29,8 @@ class SnakeEnv(gym.Env):
 
     def add_square(self, viewer, x, y, color):
         l, r, t, b = x * \
-            self.tile_width, (x + 1) * self.tile_width, y * \
-            self.tile_height, (y + 1) * self.tile_height
+            self.tile_width, (x + 1) * self.tile_width, (self.board_size - y) * \
+            self.tile_height, (self.board_size - y - 1) * self.tile_height
         square = rendering.FilledPolygon([(l, b), (l, t), (r, t), (r, b)])
         square.set_color(*color)
         self.viewer.add_onetime(square)
@@ -51,11 +51,11 @@ class SnakeEnv(gym.Env):
         assert self.action_space.contains(action)
 
         if action == 0:
-            self.player[1] += 1
+            self.player[1] -= 1
         elif action == 1:
             self.player[0] += 1
         elif action == 2:
-            self.player[1] -= 1
+            self.player[1] += 1
         elif action == 3:
             self.player[0] -= 1
 
