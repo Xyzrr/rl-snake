@@ -22,19 +22,26 @@ wandb.init(project="snake")
 wandb.config.discount_rate = .8
 wandb.config.eps = .5
 wandb.config.decay_factor = .999
+wandb.config.board_size = 5
 
 debug = False
 no_render = False
+auto_play = False
 fast_forward_remaining = 0
 
 
 def render_env_until_key_press(env):
-    global fast_forward_remaining
+    global fast_forward_remaining, auto_play
     waiting = True
 
     def key_press(key, mod):
         nonlocal waiting
-        global no_render, fast_forward_remaining, debug
+        global no_render, fast_forward_remaining, debug, auto_play
+
+        if (key == 112):  # p
+            auto_play = not auto_play
+            print(bcolors.OKBLUE +
+                  'Turned {} autoplay'.format('on' if auto_play else 'off') + bcolors.ENDC)
 
         if (key == 100):  # d
             debug = not debug
@@ -48,7 +55,7 @@ def render_env_until_key_press(env):
         if (key == 99 and mod == 2):  # ctrl + c
             exit(0)
 
-        if (48 <= key <= 57):  # 0-9
+        if (49 <= key <= 57):  # 1-9
             digit = key - 48
             fast_forward_remaining = 10**digit - 1
             if mod == 132:  # option
@@ -64,6 +71,9 @@ def render_env_until_key_press(env):
         fast_forward_remaining -= 1
         if not no_render:
             env.render()
+    elif auto_play:
+        time.sleep(0.2)
+        env.render()
     else:
         env.render()
         env.unwrapped.viewer.window.on_key_press = key_press
@@ -165,7 +175,7 @@ def train(env, model, num_episodes=500):
     env.close()
 
 
-env = gym.make('snake-v0')
+env = gym.make('snake-v0', board_size=wandb.config.board_size)
 
 model = keras.Sequential()
 model.add(keras.layers.InputLayer(batch_input_shape=(1, 4)))
@@ -173,5 +183,7 @@ model.add(keras.layers.InputLayer(batch_input_shape=(1, 4)))
 model.add(keras.layers.Dense(10, activation='relu'))
 model.add(keras.layers.Dense(4, activation='linear'))
 model.compile(loss='mse', optimizer=keras.optimizers.Adam())
+
+model.summary()
 
 train(env, model, num_episodes=10000)
