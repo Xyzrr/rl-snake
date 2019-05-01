@@ -19,10 +19,12 @@ class bcolors:
 
 
 wandb.init(project="snake")
-wandb.config.discount_rate = .8
+wandb.config.discount_rate = .6
 wandb.config.initial_eps = 1
 wandb.config.decay_factor = .9998
 wandb.config.board_size = 5
+wandb.config.food_reward = 1
+wandb.config.death_reward = -1
 
 debug = False
 no_render = False
@@ -128,7 +130,7 @@ def train(env, model, num_episodes=500):
         step = 0
         # wandb_table_data = []
         while not done:
-            model_input = np.array([observation.flatten()])
+            model_input = np.array([observation.reshape(5, 5, 1)])
             prediction = model.predict(model_input)
             if np.random.random() < eps:
                 action = np.random.randint(0, 4)
@@ -141,17 +143,18 @@ def train(env, model, num_episodes=500):
             print_step_before_move(
                 step, observation, prediction, action, was_random)
 
-            if episode > 0:
-                render_env_until_key_press(env)
+            render_env_until_key_press(env)
+
             new_observation, reward, done, _ = env.step(action)
             # wandb_table_data.append(
             #     [player[0], player[1], food[0], food[1], action, str(was_random), reward, str(done), str(prediction)])
             target_action_score = reward + discount_rate * np.max(model.predict(
-                np.array([new_observation.flatten()])))
+                np.array([new_observation.reshape(5, 5, 1)])))
 
             label = prediction
             label[0][action] = target_action_score
-            model.fit(model_input, label, epochs=1, verbose=0)
+            model.fit(model_input, label, epochs=1,
+                      verbose=0, callbacks=[WandbCallback()])
 
             print_step_after_move(reward, target_action_score,
                                   label, model.predict(model_input))
@@ -162,6 +165,8 @@ def train(env, model, num_episodes=500):
 
             observation = new_observation
         wandb.log({'episode': episode, 'total_food': total_food, 'eps': eps})
+        print('Score: {}'.format(total_food))
+        print()
     # wandb_table_data = []
     # for px in range(4):
     #     for py in range(4):
@@ -174,11 +179,19 @@ def train(env, model, num_episodes=500):
     env.close()
 
 
-env = gym.make('snake-v0', board_size=wandb.config.board_size)
+env = gym.make('snake-v0', board_size=wandb.config.board_size,
+               food_reward=wandb.config.food_reward, death_reward=wandb.config.death_reward)
 
 model = keras.Sequential()
-model.add(keras.layers.InputLayer(
-    batch_input_shape=(1, wandb.config.board_size**2)))
+# model.add(keras.layers.InputLayer(
+# batch_input_shape = (1, wandb.config.board_size**2)))
+model.add(keras.layers.Conv2D(4,
+                              (2, 2),
+                              input_shape=(wandb.config.board_size,
+                                           wandb.config.board_size, 1),
+                              activation='relu'))
+# model.add(keras.layers.MaxPool2D((2, 2)))
+model.add(keras.layers.Flatten())
 model.add(keras.layers.Dense(40, activation='relu'))
 model.add(keras.layers.Dense(40, activation='relu'))
 model.add(keras.layers.Dense(4, activation='linear'))
@@ -186,4 +199,4 @@ model.compile(loss='mse', optimizer=keras.optimizers.Adam())
 
 model.summary()
 
-train(env, model, num_episodes=10000)
+train(env, model, num_episodes=1000000)
