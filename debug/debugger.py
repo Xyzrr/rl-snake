@@ -1,5 +1,5 @@
 import time
-import colors
+from debug import colors
 
 debug = False
 no_render = False
