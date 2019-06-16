@@ -69,6 +69,21 @@ def render_env_until_key_press(env):
             env.render()
             pass
 
+def observation_to_string(observation):
+    result = ''
+    for i, row in enumerate(observation):
+        line = ''
+        for j, cell in enumerate(row):
+            if cell[0]:
+                line += colors.FAIL + "O" + colors.ENDC
+            elif cell[1]:
+                line += colors.OKGREEN + "O" + colors.ENDC
+            elif cell[2]:
+                line += colors.OKGREEN + str(int(cell[2])) + colors.ENDC
+            else:
+                line += "."
+        result += line + "\n"
+    return result
 
 def print_step_before_move(step, observation, prediction, action, was_random):
     if not debug:
@@ -77,7 +92,7 @@ def print_step_before_move(step, observation, prediction, action, was_random):
     print()
     print('-' * 40, step, '-' * 40)
     print('Observation:             ')
-    print(observation)
+    print(observation_to_string(observation))
     print('Prediction:              ', prediction)
 
     action_str = '{} ({})'.format(

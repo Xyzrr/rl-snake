@@ -18,7 +18,7 @@ def train(conf, env, model, num_episodes=500):
         step = 0
         while not done:
             model_input = np.array(
-                [observation.reshape(conf.board_size, conf.board_size, 4)])
+                [observation.reshape(conf.board_size, conf.board_size, 3)])
             prediction = model.predict(model_input)
             adjusted_eps = eps * conf.eps_growth_rate ** step
             if np.random.random() < adjusted_eps:
@@ -36,7 +36,7 @@ def train(conf, env, model, num_episodes=500):
             new_observation, reward, done, _ = env.step(action)
 
             target_action_score = reward + (0 if done else discount_rate * np.max(model.predict(
-                np.array([new_observation.reshape(conf.board_size, conf.board_size, 4)]))))
+                np.array([new_observation.reshape(conf.board_size, conf.board_size, 3)]))))
 
             label = prediction
             label[0][action] = target_action_score

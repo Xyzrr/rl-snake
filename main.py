@@ -9,15 +9,15 @@ from debug import colors
 wandb.init(project="snake")
 conf = wandb.config
 conf.discount_rate = .9
-conf.initial_eps = 0
+conf.initial_eps = .5
 conf.eps_growth_rate = 1.01
 conf.decay_factor = .999
 conf.board_size = 9
 conf.food_reward = 1
 conf.death_reward = -1
 conf.experience_replay = False
-# conf.load_model = None
-conf.load_model = 'last_model.h5'
+conf.load_model = None
+# conf.load_model = 'last_model.h5'
 conf.algorithm = 'basic'
 
 
@@ -34,7 +34,7 @@ else:
     model.add(keras.layers.Conv2D(8,
                                 (2, 2),
                                 input_shape=(conf.board_size,
-                                            conf.board_size, 4),
+                                            conf.board_size, 3),
                                 activation='relu'))
     model.add(keras.layers.Flatten())
     # model.add(keras.layers.BatchNormalization())

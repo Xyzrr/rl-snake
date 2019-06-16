@@ -87,15 +87,13 @@ class SnakeEnv(gym.Env):
         return self.viewer.render()
 
     def get_observation(self):
-        observation = np.zeros((self.board_size, self.board_size, 4))
+        observation = np.zeros((self.board_size, self.board_size, 3))
         observation[self.food[1], self.food[0], 0] = 1
         for i, node in enumerate(self.player):
-            if i == 0 and len(self.player) > 1:
+            if i == len(self.player) - 1:
                 observation[node[1], node[0], 1] = 1
-            elif i == len(self.player) - 1:
-                observation[node[1], node[0], 3] = 1
             else:
-                observation[node[1], node[0], 2] = 1
+                observation[node[1], node[0], 2] = i + 1
         return observation
 
     def step(self, action):
