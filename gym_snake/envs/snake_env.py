@@ -1,12 +1,21 @@
 import gym
 from gym import spaces
-from gym.envs.classic_control import rendering
 import numpy as np
 import random
+
+try:
+    import google.colab
+    IN_COLAB = True
+except:
+    IN_COLAB = False
+
+if not IN_COLAB:
+    from gym.envs.classic_control import rendering
 
 
 class SnakeEnv(gym.Env):
     WIDTH = HEIGHT = 600
+    IN_COLAB = IN_COLAB
 
     def __init__(self, board_size=8, food_reward=2, death_reward=-1):
         self.board_size = board_size
@@ -35,11 +44,16 @@ class SnakeEnv(gym.Env):
                 and y == self.food[1])
 
     def randomize_food(self):
-        while True:
-            self.food = (random.randint(
-                0, self.board_size - 1), random.randint(0, self.board_size - 1))
-            if self.food not in self.player:
-                break
+        if self.food[0] == 3:
+            self.food = [5, 5]
+        else:
+            self.food = [3, 3]
+        self.food = random.choice([[3, 3], [3, 5], [5, 3], [5, 5]])
+        # while True:
+        #     self.food = (random.randint(
+        #         0, self.board_size - 1), random.randint(0, self.board_size - 1))
+        #     if self.food not in self.player:
+        #         break
 
     def add_square(self, viewer, position, color, margin=2):
         x, y = position
@@ -50,6 +64,9 @@ class SnakeEnv(gym.Env):
         self.viewer.add_onetime(square)
 
     def render(self):
+        if self.IN_COLAB:
+            return
+
         if self.viewer is None:
             self.viewer = rendering.Viewer(self.WIDTH, self.HEIGHT)
 
@@ -58,26 +75,28 @@ class SnakeEnv(gym.Env):
         background.set_color(0, 0, 0)
         self.viewer.add_onetime(background)
 
+        self.add_square(self.viewer, self.food, (.8, 0, 0))
         for i, node in enumerate(self.player):
-            if i == len(self.player) - 1:
+            if i == 0 and len(self.player) > 1:
+                self.add_square(self.viewer, node, (.3, .5, 0))
+            elif i == len(self.player) - 1:
                 self.add_square(self.viewer, node, (.7, 1, 0))
             else:
                 self.add_square(self.viewer, node, (.5, .8, 0))
-        self.add_square(self.viewer, self.food, (.8, 0, 0))
 
         return self.viewer.render()
 
     def get_observation(self):
-        observation = np.zeros((self.board_size, self.board_size))
-        if not self.player_out_of_bounds():
-            for i, node in enumerate(self.player):
-                if i == len(self.player) - 1:
-                    observation[node[1], node[0]] = 2
-                else:
-                    observation[node[1], node[0]] = -1
-        observation[self.food[1], self.food[0]] = 9
+        observation = np.zeros((self.board_size, self.board_size, 4))
+        observation[self.food[1], self.food[0], 0] = 1
+        for i, node in enumerate(self.player):
+            if i == 0 and len(self.player) > 1:
+                observation[node[1], node[0], 1] = 1
+            elif i == len(self.player) - 1:
+                observation[node[1], node[0], 3] = 1
+            else:
+                observation[node[1], node[0], 2] = 1
         return observation
-        # return ((self.player[0], self.player[1]), (self.food[0], self.food[1]))
 
     def step(self, action):
         assert self.action_space.contains(action)
@@ -102,19 +121,27 @@ class SnakeEnv(gym.Env):
             reward = self.food_reward
             self.randomize_food()
 
+        if len(self.player) > self.size:
+            self.player.pop(0)
+
         done = False
         if self.player_out_of_bounds() or self.collided_with_tail():
             done = True
             reward = self.death_reward
 
-        if len(self.player) > self.size:
-            self.player.pop(0)
-
-        return self.get_observation(), reward, done, {}
+        return None if done else self.get_observation(), reward, done, {}
 
     def reset(self):
-        self.player = [(random.randint(
-            0, self.board_size - 1), random.randint(0, self.board_size - 1))]
-        self.randomize_food()
+        if random.random() < .5:
+            self.player = [[3, 3]]
+            self.food = [5, 5]
+        else:
+            self.player = [[5, 5]]
+            self.food = [3, 3]
+
+        # self.player = [(random.randint(
+        # 0, self.board_size - 1), random.randint(0, self.board_size - 1))]
+        # self.randomize_food()
+
         self.size = 1
         return self.get_observation()
