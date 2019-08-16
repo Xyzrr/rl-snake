@@ -5,29 +5,24 @@ import numpy as np
 from debug import colors, debugger
 
 
-# def fit_model_to_memory(model, replay_memory, minibatch_size=30):
-#     model_input = np.stack([observation.reshape(
-#         conf.board_size, conf.board_size, 1) for observation, _, _, _ in replay_memory[-30:]])
-#     predictions = model.predict(model_input)
-
-
-def train(conf, env, model, num_episodes=500):
+def train(conf, env, model, num_episodes=500, eps_growth_rate=1.005):
     discount_rate = conf.discount_rate
     eps = conf.initial_eps
+    conf.eps_growth_rate = eps_growth_rate
     decay_factor = conf.decay_factor
-    replay_memory = []
     for episode in range(num_episodes):
         print("Episode {}".format(episode))
         observation = env.reset()
-        eps *= decay_factor
+        eps = max(eps*decay_factor, conf.min_eps)
         done = False
         total_food = 0
         step = 0
         while not done:
             model_input = np.array(
-                [observation.reshape(conf.board_size, conf.board_size, 4)])
+                [observation])
             prediction = model.predict(model_input)
-            adjusted_eps = eps * conf.eps_growth_rate ** step
+
+            adjusted_eps = eps * eps_growth_rate ** step
             if np.random.random() < adjusted_eps:
                 action = np.random.randint(0, 4)
                 was_random = True
@@ -35,26 +30,32 @@ def train(conf, env, model, num_episodes=500):
                 action = np.argmax(prediction)
                 was_random = False
 
-            debugger.print_step_before_move(
-                step, observation, prediction, action, was_random)
+            debugger.print_step_before_move({
+                'step': step,
+                'observation': observation,
+                'prediction': prediction,
+                'was_random': was_random,
+                'action': action,
+            })
 
-            debugger.render_env_until_key_press(env)
+
+            debugger.render_env_until_key_press(env, model)
 
             new_observation, reward, done, _ = env.step(action)
-            memory_unit = (observation, action, reward, new_observation)
-            replay_memory.append(memory_unit)
 
-            # fit_model_to_memory(model, replay_memory)
             target_action_score = reward + (0 if done else discount_rate * np.max(model.predict(
-                np.array([new_observation.reshape(conf.board_size, conf.board_size, 4)]))))
+                np.array([new_observation]))))
 
             label = prediction
             label[0][action] = target_action_score
             model.fit(model_input, label, epochs=1,
                       verbose=0)
 
-            debugger.print_step_after_move(reward, target_action_score,
-                                  label, model.predict(model_input))
+            debugger.print_step_after_move({'reward': reward, 
+                'target_action_score': target_action_score,
+                'label': label, 
+                'new_prediction': model.predict(model_input)
+            })
 
             if (reward > 0):
                 total_food += 1

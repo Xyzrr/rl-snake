@@ -12,29 +12,30 @@ def train(conf, env, model, num_episodes=500):
     for episode in range(num_episodes):
         print("Episode {}".format(episode))
         observation = env.reset()
-        eps = max(eps*decay_factor, conf.min_eps)
+        eps *= decay_factor
         done = False
         total_food = 0
         step = 0
+        greedy_count = 0
         while not done:
             model_input = np.array(
                 [observation])
             prediction = model.predict(model_input)
-            if np.random.random() < eps:
-                action = np.random.randint(0, 4)
-                was_random = True
-            else:
-                action = np.argmax(prediction)
-                was_random = False
+            greedy_action = np.argmax(prediction)
 
+            randomized_prediction = prediction + np.random.rand(4) * max(eps, .2)
+            action = np.argmax(randomized_prediction)
+
+            if greedy_action == action:
+                greedy_count += 1
             debugger.print_step_before_move({
                 'step': step,
                 'observation': observation,
                 'prediction': prediction,
-                'was_random': was_random,
+                'greedy_action': greedy_action,
+                'randomized_prediction': randomized_prediction,
                 'action': action,
             })
-
 
             debugger.render_env_until_key_press(env, model)
 
@@ -60,7 +61,7 @@ def train(conf, env, model, num_episodes=500):
 
             observation = new_observation
         wandb.log({'episode': episode, 'total_food': total_food,
-                   'eps': eps, 'lifetime': step})
+                   'eps': eps, 'lifetime': step, 'greedy_percent': greedy_count / step})
         print('Score: {}'.format(total_food))
         print()
     env.close()

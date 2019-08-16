@@ -17,13 +17,14 @@ class SnakeEnv(gym.Env):
     WIDTH = HEIGHT = 600
     IN_COLAB = IN_COLAB
 
-    def __init__(self, board_size=8, food_reward=2, death_reward=-1):
+    def __init__(self, board_size=8, food_reward=2, death_reward=-1, super_random_training=False, easy_world=False):
         self.board_size = board_size
         self.food_reward = food_reward
         self.death_reward = death_reward
+        self.super_random_training = super_random_training
+        self.easy_world = easy_world
         self.action_space = spaces.Discrete(4)
-        self.observation_space = spaces.Tuple(
-            (spaces.Box(low=0, high=15, shape=(2,), dtype=np.int32), spaces.Box(low=-16, high=16, shape=(2,), dtype=np.int32)))
+        self.observation_space = spaces.Box(0, 255, shape=(9, 9, 3), dtype=np.uint8)
 
         self.viewer = None
         self.tile_width = self.WIDTH // self.board_size
@@ -44,16 +45,15 @@ class SnakeEnv(gym.Env):
                 and y == self.food[1])
 
     def randomize_food(self):
-        if self.food[0] == 3:
-            self.food = [5, 5]
+        if self.easy_world:
+            opts = [[3, 3], [3, 5], [5, 3], [5, 5]]
+            self.food = random.choice(opts)
         else:
-            self.food = [3, 3]
-        self.food = random.choice([[3, 3], [3, 5], [5, 3], [5, 5]])
-        # while True:
-        #     self.food = (random.randint(
-        #         0, self.board_size - 1), random.randint(0, self.board_size - 1))
-        #     if self.food not in self.player:
-        #         break
+            while True:
+                self.food = (random.randint(
+                            0, self.board_size - 1), random.randint(0, self.board_size - 1))
+                if self.food not in self.player:
+                    break
 
     def add_square(self, viewer, position, color, margin=2):
         x, y = position
@@ -127,19 +127,42 @@ class SnakeEnv(gym.Env):
             done = True
             reward = self.death_reward
 
-        return None if done else self.get_observation(), reward, done, {}
+        return np.zeros((self.board_size, self.board_size, 3)) if done else self.get_observation(), reward, done, {}
+
+    def is_safe_spot(self, pos):
+        x, y = pos
+        return pos not in self.player and (0 <= x < self.board_size and 0 <= y < self.board_size)
+
+    def generate_random_snake(self):
+        self.size = random.randint(1, 20)
+        self.player = [(random.randint(0, self.board_size - 1), random.randint(0, self.board_size - 1))]
+        for i in range(self.size - 1):
+            options = [(0, -1), (1, 0), (0, 1), (-1, 0)]
+            random.shuffle(options)
+            for opt in options:
+                new_pos = (self.player[-1][0] + opt[0], self.player[-1][1] + opt[1])
+                if self.is_safe_spot(new_pos):
+                    self.player.append(new_pos)
+                    break
+            else:
+                break
+        self.player.reverse()
 
     def reset(self):
-        if random.random() < .5:
-            self.player = [[3, 3]]
-            self.food = [5, 5]
+        if self.super_random_training:
+            self.generate_random_snake()
+            self.randomize_food()
         else:
-            self.player = [[5, 5]]
-            self.food = [3, 3]
+            if self.easy_world:
+                self.player = [random.choice([[3, 3], [3, 5], [5, 3], [5, 5]])]
+                # self.player = [(random.randint(
+                # 0, self.board_size - 1), random.randint(0, self.board_size - 1))]
+                self.randomize_food()
+            else:
+                self.player = [(random.randint(
+                0, self.board_size - 1), random.randint(0, self.board_size - 1))]
+                self.randomize_food()
 
-        # self.player = [(random.randint(
-        # 0, self.board_size - 1), random.randint(0, self.board_size - 1))]
-        # self.randomize_food()
+            self.size = 1
 
-        self.size = 1
         return self.get_observation()

@@ -6,7 +6,7 @@ no_render = False
 auto_play = False
 fast_forward_remaining = 0
 
-def render_env_until_key_press(env):
+def render_env_until_key_press(env, model):
     if env.unwrapped.IN_COLAB:
         return
 
@@ -79,38 +79,52 @@ def observation_to_string(observation):
             elif cell[1]:
                 line += colors.OKGREEN + "O" + colors.ENDC
             elif cell[2]:
-                line += colors.OKGREEN + str(int(cell[2])) + colors.ENDC
+                line += colors.OKGREEN + (str(int(cell[2])) if cell[2] < 10 else chr(int(cell[2]) - 10 + ord('a'))) + colors.ENDC
             else:
                 line += "."
         result += line + "\n"
     return result
 
-def print_step_before_move(step, observation, prediction, action, was_random):
+def print_step_before_move(data):
     if not debug:
         return
 
     print()
-    print('-' * 40, step, '-' * 40)
-    print('Observation:             ')
-    print(observation_to_string(observation))
-    print('Prediction:              ', prediction)
+    print('-' * 40, data['step'], '-' * 40)
+    if 'observation' in data:
+        print('Observation:             ')
+        print(observation_to_string(data['observation']))
+    if 'prediction' in data:
+        print('Prediction:              ', data['prediction'])
+    if 'randomized_prediction' in data:
+        print('Randomized:              ', data['randomized_prediction'])
 
-    action_str = '{} ({})'.format(
-        action, ['up', 'right', 'down', 'left'][action])
-    if was_random:
-        print('Random move:             ', action_str)
-    else:
-        print('Move:                    ', action_str)
+    if 'action' in data:
+        action_str = '{} ({})'.format(
+            data['action'], ['up', 'right', 'down', 'left'][data['action']])
+        if 'greedy_action' in data and data['greedy_action'] != data['action']:
+            greedy_action_str = '{} ({})'.format(
+                data['greedy_action'], ['up', 'right', 'down', 'left'][data['greedy_action']])
+            print('Move:                    ', action_str, colors.WARNING + 'greedy:', greedy_action_str + colors.ENDC)
+        else:
+            print('Move:                    ', action_str)
+
+        if 'was_random' in data and data['was_random']:
+            print('Was random!')
 
 
-def print_step_after_move(reward, target_action_score, label, new_prediction):
+def print_step_after_move(data):
     if not debug:
         return
 
     print()
-    print('Reward:                  ', reward)
-    print('Target action score:     ', target_action_score)
-    print('Label:                   ', label)
-    print('New prediction:          ', new_prediction)
+    if 'reward' in data:
+        print('Reward:                  ', data['reward'])
+    if 'target_action_score' in data:
+        print('Target action score:     ', data['target_action_score'])
+    if 'label' in data:
+        print('Label:                   ', data['label'])
+    if 'new_prediction' in data:
+        print('New prediction:          ', data['new_prediction'])
     print('-' * 83)
     print()
