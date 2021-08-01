@@ -1,6 +1,6 @@
 # rl-snake
 
-An attempt to build an AI that plays snake using a DQN.
+An attempt to build an AI that plays snake using a DQN. Inspired by DeepMind's [Atari paper](https://www.cs.toronto.edu/~vmnih/docs/dqn.pdf).
 
 To run:
 ```
